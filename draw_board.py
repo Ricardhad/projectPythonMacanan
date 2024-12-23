@@ -5,6 +5,7 @@ def draw_board(canvas, size, padding):
     gap = size // 5  # Ukuran jarak antar titik
     node_radius = 5  # Radius untuk titik-titik
 
+    # nodes_pos = []
     # Menggambar kotak tengah (5x5 grid) dengan garis diagonal bergantian
     for row in range(5):
         for col in range(5):
@@ -18,6 +19,7 @@ def draw_board(canvas, size, padding):
                 fill="black"
             )
 
+            # nodes_pos.append(x,y)
             # Garis horizontal dan vertikal
             if col < 4:  # Horizontal
                 canvas.create_line(x, y, x + gap, y, fill="black")
@@ -54,6 +56,7 @@ def draw_board(canvas, size, padding):
         (left_center_x - gap, left_center_y),
         (left_center_x - gap, left_center_y + gap/2),
     ]
+  
 
     for x, y in left_nodes:
         canvas.create_oval(
@@ -91,3 +94,8 @@ def draw_board(canvas, size, padding):
             x + node_radius, y + node_radius,
             fill="black"
         )
+
+    # nodes_pos.append(left_nodes)
+    # nodes_pos.append(right_nodes)
+
+    # print(nodes_pos)
