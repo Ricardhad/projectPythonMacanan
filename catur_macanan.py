@@ -26,7 +26,8 @@ def main():
     center_window(root, canvas_width, canvas_height)
 
     # Gambar papan macanan
-    draw_board(canvas, 400, 200)  # Ukuran papan dan padding
+    positions = draw_board(canvas, 400, 200)  # Ukuran papan dan padding
+    print("Posisi semua titik:", positions)
 
     # Jalankan aplikasi
     root.mainloop()
