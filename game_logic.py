@@ -33,19 +33,23 @@ class GameLogic:
         return None
 
     def place_manusia(self, node):
-        """Menempatkan pion manusia dalam formasi 3x3."""
-        valid_3x3_nodes = [
-            (self.positions[6]), (self.positions[7]), (self.positions[8]),
-            (self.positions[11]), (self.positions[12]), (self.positions[13]),
-            (self.positions[16]), (self.positions[17]), (self.positions[18])
-        ]
+        """Menempatkan pion manusia dalam formasi 3x3 di dalam papan 5x5."""
+        valid_3x3_nodes = []
+        node_index = self.positions.index(node)
+        row, col = node_index // 5, node_index % 5  # Menentukan baris dan kolom dari titik yang diklik
 
-        # Pastikan klik berada di salah satu titik formasi 3x3
+        # Pastikan formasi 3x3 hanya ditempatkan di dalam papan 5x5
+        if 1 <= row <= 3 and 1 <= col <= 3:
+            for r in range(row-1, row+2):  # Formasi 3x3, -1, 0, +1 baris
+                for c in range(col-1, col+2):  # Formasi 3x3, -1, 0, +1 kolom
+                    valid_3x3_nodes.append(self.positions[r * 5 + c])
+
+        # Pastikan titik berada dalam formasi 3x3 yang valid
         if node not in valid_3x3_nodes:
-            print("Pion manusia harus ditempatkan dalam formasi 3x3 di tengah papan!")
+            print("Pion manusia harus ditempatkan dalam formasi 3x3 yang valid di papan!")
             return
 
-        # Tambahkan semua pion 3x3 ke dalam daftar manusia_pieces
+        # Tambahkan pion manusia dalam formasi 3x3 ke dalam daftar manusia_pieces
         self.manusia_pieces.extend(valid_3x3_nodes)
         for piece in valid_3x3_nodes:
             self.canvas.create_oval(
