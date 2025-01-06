@@ -1,5 +1,6 @@
 import tkinter as tk
 from draw_board import draw_board
+from game_logic import GameLogic  # Impor kelas GameLogic
 
 def center_window(root, canvas_width, canvas_height):
     """Posisikan jendela Tkinter di tengah layar."""
@@ -28,6 +29,9 @@ def main():
     # Gambar papan macanan
     positions = draw_board(canvas, 400, 200)  # Ukuran papan dan padding
     print("Posisi semua titik:", positions)
+
+    # Inisialisasi logika permainan
+    game_logic = GameLogic(canvas, positions)
 
     # Jalankan aplikasi
     root.mainloop()
