@@ -1,4 +1,3 @@
-
 class GameLogic:
 
     def __init__(self, canvas, positions):
@@ -10,19 +9,23 @@ class GameLogic:
         self.selected_piece = None  # Pion yang dipilih untuk digerakkan
         self.canvas.bind("<Button-1>", self.place_or_move_piece)
         self.current_player = "You"  # Set starting player
+        self.turn_count = 0  # Initialize turn count
         self.turn_label = self.canvas.create_text(
-            250, 20, text=f"Turn: {self.current_player}", font=("Arial", 14), fill="black"
+            250, 20, text=f"Turn: {self.current_player} | Round: {self.turn_count}", font=("Arial", 14), fill="black"
         )
 
     def change_turn(self):
+        """Ganti giliran pemain dan increment turn count."""
         if self.current_player == "You":
             self.current_player = "AI"
         else:
             self.current_player = "You"
         
-        # Update the turn label text
-        self.canvas.itemconfig(self.turn_label, text=f"Turn: {self.current_player}")
+        # Increment the turn count after each round
+        self.turn_count += 1
 
+        # Update the turn label text
+        self.canvas.itemconfig(self.turn_label, text=f"Turn: {self.current_player} | Round: {self.turn_count}")
 
     def place_or_move_piece(self, event):
         """Menangani klik pada papan untuk menempatkan pion atau memilih pion yang akan digerakkan."""
@@ -54,7 +57,6 @@ class GameLogic:
         # After handling the move or placement, switch turns only if the action was valid
         if turn_changed:
             self.change_turn()
-
 
     def get_nearest_node(self, x, y, threshold=10):
         """Cari titik terdekat dari posisi klik, dalam jarak threshold piksel."""
@@ -89,9 +91,9 @@ class GameLogic:
                 fill="blue"
             )
         print("Pion manusia berhasil ditempatkan dalam formasi 3x3.")
-
+        
     def place_macan(self, node):
-        """Menempatkan pion macan jika valid."""
+        """Menempatkan pion macan jika valid. Hapus macan jika ditempatkan di sisi biru."""
         if node in self.manusia_pieces:
             print("Tidak bisa menaruh pion macan di titik yang sama dengan pion manusia!")
             return
@@ -100,6 +102,13 @@ class GameLogic:
             print("Pion macan harus ditempatkan jauh dari pion manusia!")
             return
 
+        # Check if the macan piece is on the blue side and remove it if so
+        if node in self.manusia_pieces:
+            self.remove_macan()
+            print("Pion macan dihapus karena ditempatkan di sisi biru.")
+            return
+
+        # If it's valid, proceed with placement
         self.macan_piece = node
         self.canvas.create_oval(
             node[0] - 8, node[1] - 8,
@@ -107,6 +116,17 @@ class GameLogic:
             fill="red"
         )
         print("Pion macan berhasil ditempatkan.")
+
+    def remove_macan(self):
+        """Hapus pion macan jika sudah ada."""
+        if self.macan_piece:
+            self.canvas.create_oval(
+                self.macan_piece[0] - 8, self.macan_piece[1] - 8,
+                self.macan_piece[0] + 8, self.macan_piece[1] + 8,
+                fill="black"
+            )
+            self.macan_piece = None
+
 
     def is_safe_distance(self, node, min_distance=20):
         """Periksa apakah pion macan tidak bersebelahan dengan pion manusia."""
@@ -144,68 +164,66 @@ class GameLogic:
                 )
 
     def get_valid_moveable_positions(self, node):
-        """Mendapatkan semua posisi valid yang bisa dituju."""
+        """Mendapatkan semua posisi valid yang bisa dituju dalam formasi segitiga."""
         valid_moves = []
         node_index = self.positions.index(node)
         row, col = node_index // 5, node_index % 5
 
-        # Cek gerakan horizontal dan vertikal
+         
         directions = [
-            (-1, 0),  # atas
-            (1, 0),   # bawah
-            (0, -1),  # kiri
-            (0, 1),   # kanan
-            (-1, -1), # diagonal kiri atas
-            (-1, 1),  # diagonal kanan atas
-            (1, -1),  # diagonal kiri bawah
-            (1, 1)    # diagonal kanan bawah
-        ]
+                (-1, 0),  # atas
+                (1, 0),   # bawah
+                (0, -1),  # kiri
+                (0, 1),   # kanan
+            ]
 
         for dx, dy in directions:
-            new_row, new_col = row + dx, col + dy
-            if 0 <= new_row < 5 and 0 <= new_col < 5:
-                new_node = self.positions[new_row * 5 + new_col]
-                # Pastikan posisi baru tidak ditempati pion lain
-                if new_node not in self.manusia_pieces and new_node != self.macan_piece:
-                    valid_moves.append(new_node)
+                new_row, new_col = row + dx, col + dy
+                if 0 <= new_row < 5 and 0 <= new_col < 5:
+                    new_node = self.positions[new_row * 5 + new_col]
+                    # Pastikan posisi baru tidak ditempati pion lain
+                    if new_node not in self.manusia_pieces and new_node != self.macan_piece:
+                        # Add the new node to valid moves if within triangular grid constraints
+                        valid_moves.append(new_node)
 
         return valid_moves
-    
+
+        
     def move_piece(self, selected_piece, target_node):
-        """Pindahkan pion yang dipilih ke target node."""
-        if target_node not in self.get_valid_moveable_positions(selected_piece):
-            print("Gerakan tidak valid!")
+            """Pindahkan pion yang dipilih ke target node dengan posisi segitiga."""
+            if target_node not in self.get_valid_moveable_positions(selected_piece):
+                print("Gerakan tidak valid!")
+                self.selected_piece = None
+                self.canvas.delete("highlight")
+                return False  # Invalid move, return False
+
+            # Valid move, proceed with the movement
+            piece_color = "blue" if selected_piece in self.manusia_pieces else "red"
+            
+            # Hapus pion dari posisi lama
+            self.canvas.create_oval(
+                selected_piece[0] - 8, selected_piece[1] - 8,
+                selected_piece[0] + 8, selected_piece[1] + 8,
+                fill="black"
+            )
+
+            # Gambar pion di posisi baru
+            self.canvas.create_oval(
+                target_node[0] - 8, target_node[1] - 8,
+                target_node[0] + 8, target_node[1] + 8,
+                fill=piece_color
+            )
+
+            # Update posisi pion dalam list
+            if selected_piece in self.manusia_pieces:
+                self.manusia_pieces.remove(selected_piece)
+                self.manusia_pieces.append(target_node)
+            else:  # Macan piece
+                self.macan_piece = target_node
+
+            # Reset selection dan hapus highlight
             self.selected_piece = None
             self.canvas.delete("highlight")
-            return False  # Invalid move, return False
 
-        # Valid move, proceed with the movement
-        piece_color = "blue" if selected_piece in self.manusia_pieces else "red"
-        
-        # Hapus pion dari posisi lama
-        self.canvas.create_oval(
-            selected_piece[0] - 8, selected_piece[1] - 8,
-            selected_piece[0] + 8, selected_piece[1] + 8,
-            fill="black"
-        )
-
-        # Gambar pion di posisi baru
-        self.canvas.create_oval(
-            target_node[0] - 8, target_node[1] - 8,
-            target_node[0] + 8, target_node[1] + 8,
-            fill=piece_color
-        )
-
-        # Update posisi pion dalam list
-        if selected_piece in self.manusia_pieces:
-            self.manusia_pieces.remove(selected_piece)
-            self.manusia_pieces.append(target_node)
-        else:  # Macan piece
-            self.macan_piece = target_node
-
-        # Reset selection dan hapus highlight
-        self.selected_piece = None
-        self.canvas.delete("highlight")
-
-        return True  # Valid move, return True
+            return True  # Valid move, return True
 

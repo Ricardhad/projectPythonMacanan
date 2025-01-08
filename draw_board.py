@@ -100,14 +100,4 @@ def draw_board(canvas, size, padding):
 
     return nodes_pos  # Mengembalikan posisi semua titik
 
-# # Contoh penggunaan
-# root = tk.Tk()
-# canvas_size = 400
-# padding = 50
-# canvas = tk.Canvas(root, width=canvas_size, height=canvas_size)
-# canvas.pack()
 
-# positions = draw_board(canvas, canvas_size - 2 * padding, padding)
-# print("Posisi semua titik:", positions)
-
-# root.mainloop()
