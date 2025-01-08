@@ -49,21 +49,18 @@ def start_game(root,choice):
 
 
     # Fungsi untuk memperbarui giliran setelah setiap langkah
-    def change_turn():
-        nonlocal current_player
-        if current_player == "You":
-            current_player = "AI"
-        else:
-            current_player = "You"
-        update_turn_label(turn_label, current_player)
-
+    
     # Menambahkan fungsi untuk mengganti giliran
-    game_logic.set_turn_change_callback(change_turn)
+    game_logic.change_turn(current_player)
+    print(current_player)
+
 
     # Mulai permainan
     game_window.transient(root)
     game_window.grab_set()
     root.wait_window(game_window)
+    
+    print(game_window)
 
 def show_start_screen():
     """Menampilkan tampilan awal (pilihan antara Manusia atau Macan)."""
@@ -83,15 +80,16 @@ def show_start_screen():
 
     # Tombol untuk memilih manusia
     button_manusia = tk.Button(root, text="Menjadi Manusia", width=20, height=2,
-                               command=lambda: start_game("You"))
+                               command=lambda: start_game(root,"You"))
     button_manusia.pack(pady=10)
 
     # Tombol untuk memilih macan
     button_macan = tk.Button(root, text="Menjadi Macan", width=20, height=2,
-                             command=lambda: start_game("AI"))
+                             command=lambda: start_game(root,"AI"))
     button_macan.pack(pady=10)
 
     # Jalankan tampilan awal
+    
     root.mainloop()
 
 # Menjalankan tampilan awal ketika file ini dijalankan

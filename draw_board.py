@@ -3,7 +3,7 @@ import tkinter as tk
 def draw_board(canvas, size, padding):
     """Menggambar papan macanan dengan garis diagonal bergantian dan segitiga di kiri & kanan."""
     gap = size // 5  # Ukuran jarak antar titik
-    node_radius = 5  # Radius untuk titik-titik
+    node_radius = 8  # Radius untuk titik-titik
 
     nodes_pos = []
     # Menggambar kotak tengah (5x5 grid) dengan garis diagonal bergantian

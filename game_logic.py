@@ -9,6 +9,13 @@ class GameLogic:
         self.current_phase = "placement"  # Tahap awal: penempatan pion
         self.selected_piece = None  # Pion yang dipilih untuk digerakkan
         self.canvas.bind("<Button-1>", self.place_or_move_piece)
+        self.current_player= None
+
+    def change_turn(self,current_player):
+        if current_player == "You":
+            self.current_player = "AI"
+        else:
+            self.current_player = "You"
 
     def place_or_move_piece(self, event):
         """Menangani klik pada papan untuk menempatkan pion atau memilih pion yang akan digerakkan."""
@@ -160,7 +167,7 @@ class GameLogic:
         self.canvas.create_oval(
             selected_piece[0] - 8, selected_piece[1] - 8,
             selected_piece[0] + 8, selected_piece[1] + 8,
-            fill="white"
+            fill="black"
         )
 
         # Gambar pion di posisi baru
