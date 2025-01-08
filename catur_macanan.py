@@ -51,7 +51,7 @@ def start_game(root,choice):
     # Fungsi untuk memperbarui giliran setelah setiap langkah
     
     # Menambahkan fungsi untuk mengganti giliran
-    game_logic.change_turn(current_player)
+    game_logic.change_turn()
     print(current_player)
 
 

@@ -9,27 +9,38 @@ class GameLogic:
         self.current_phase = "placement"  # Tahap awal: penempatan pion
         self.selected_piece = None  # Pion yang dipilih untuk digerakkan
         self.canvas.bind("<Button-1>", self.place_or_move_piece)
-        self.current_player= None
+        self.current_player = "You"  # Set starting player
+        self.turn_label = self.canvas.create_text(
+            250, 20, text=f"Turn: {self.current_player}", font=("Arial", 14), fill="black"
+        )
 
-    def change_turn(self,current_player):
-        if current_player == "You":
+    def change_turn(self):
+        if self.current_player == "You":
             self.current_player = "AI"
         else:
             self.current_player = "You"
+        
+        # Update the turn label text
+        self.canvas.itemconfig(self.turn_label, text=f"Turn: {self.current_player}")
+
 
     def place_or_move_piece(self, event):
         """Menangani klik pada papan untuk menempatkan pion atau memilih pion yang akan digerakkan."""
         nearest_node = self.get_nearest_node(event.x, event.y)
         if not nearest_node:
-            return
+            return  # If no valid node is found, do nothing
+
+        turn_changed = False  # Flag to track if the turn should be changed
 
         if self.current_phase == "placement":
             # Logika penempatan yang sudah ada
             if len(self.manusia_pieces) == 0:
                 self.place_manusia(nearest_node)
+                turn_changed = True
             elif self.macan_piece is None:
                 self.place_macan(nearest_node)
                 self.start_game()
+                turn_changed = True
         else:  # current_phase == "game"
             if self.selected_piece is None:
                 # Pilih pion untuk digerakkan
@@ -37,7 +48,13 @@ class GameLogic:
                     self.select_piece(nearest_node)
             else:
                 # Coba gerakkan pion yang sudah dipilih
-                self.move_piece(self.selected_piece, nearest_node)
+                if self.move_piece(self.selected_piece, nearest_node):
+                    turn_changed = True
+
+        # After handling the move or placement, switch turns only if the action was valid
+        if turn_changed:
+            self.change_turn()
+
 
     def get_nearest_node(self, x, y, threshold=10):
         """Cari titik terdekat dari posisi klik, dalam jarak threshold piksel."""
@@ -153,17 +170,19 @@ class GameLogic:
                     valid_moves.append(new_node)
 
         return valid_moves
-
+    
     def move_piece(self, selected_piece, target_node):
         """Pindahkan pion yang dipilih ke target node."""
         if target_node not in self.get_valid_moveable_positions(selected_piece):
             print("Gerakan tidak valid!")
             self.selected_piece = None
             self.canvas.delete("highlight")
-            return
+            return False  # Invalid move, return False
 
-        # Hapus pion dari posisi lama
+        # Valid move, proceed with the movement
         piece_color = "blue" if selected_piece in self.manusia_pieces else "red"
+        
+        # Hapus pion dari posisi lama
         self.canvas.create_oval(
             selected_piece[0] - 8, selected_piece[1] - 8,
             selected_piece[0] + 8, selected_piece[1] + 8,
@@ -187,3 +206,6 @@ class GameLogic:
         # Reset selection dan hapus highlight
         self.selected_piece = None
         self.canvas.delete("highlight")
+
+        return True  # Valid move, return True
+
