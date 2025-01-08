@@ -1,4 +1,6 @@
+
 class GameLogic:
+
     def __init__(self, canvas, positions):
         self.canvas = canvas
         self.positions = positions  # Daftar semua titik di papan

@@ -18,7 +18,7 @@ def update_turn_label(turn_label, current_player):
     else:
         turn_label.config(text="AI's Turn", fg="red")
 
-def start_game(choice):
+def start_game(root,choice):
     """Mulai permainan berdasarkan pilihan (Manusia atau Macan)."""
     # Buat jendela baru untuk permainan
     game_window = tk.Toplevel()
@@ -61,7 +61,9 @@ def start_game(choice):
     game_logic.set_turn_change_callback(change_turn)
 
     # Mulai permainan
-    game_window.mainloop()
+    game_window.transient(root)
+    game_window.grab_set()
+    root.wait_window(game_window)
 
 def show_start_screen():
     """Menampilkan tampilan awal (pilihan antara Manusia atau Macan)."""
