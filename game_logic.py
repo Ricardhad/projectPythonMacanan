@@ -233,10 +233,10 @@ class GameLogic:
                 )
 
     def get_valid_moveable_positions(self, node):
-        """Mendapatkan semua posisi valid yang bisa dituju mengikuti garis pada papan."""
+        """Mendapatkan semua posisi valid yang bisa dituju."""
         if not node:
             return []
-        
+            
         valid_moves = []
         try:
             node_index = self.positions.index(node)
@@ -245,62 +245,112 @@ class GameLogic:
             print(f"Node tidak valid: {node}")
             return []
 
-        # Definisi garis yang valid pada papan 5x5
-        valid_lines = [
-            # Garis horizontal
-            [(0, -1), (0, 1)],  # kiri, kanan
-            # Garis vertikal
-            [(-1, 0), (1, 0)],  # atas, bawah
-            # Garis diagonal (hanya untuk posisi yang memiliki garis diagonal)
-            [(-1, -1), (1, 1)],  # diagonal kiri atas ke kanan bawah
-            [(-1, 1), (1, -1)]   # diagonal kanan atas ke kiri bawah
-        ]
-
-        # Cek apakah posisi memiliki garis diagonal
-        has_diagonal = self._has_diagonal_lines(row, col)
+        # Definisi arah pergerakan dasar
+        orthogonal = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # Vertikal & horizontal
+        diagonal = [(1, 1), (1, -1), (-1, 1), (-1, -1)]  # Diagonal
         
-        for line_directions in valid_lines:
-            if not has_diagonal and (line_directions[0][0] != 0 and line_directions[0][1] != 0):
-                continue  # Skip diagonal jika posisi tidak memiliki garis diagonal
-            
-            for dx, dy in line_directions:
-                new_row, new_col = row + dx, col + dy
+        # Tentukan arah yang valid berdasarkan posisi
+        directions = orthogonal.copy()
+        if self._has_diagonal_lines(row, col):
+            directions.extend(diagonal)
+
+        # Periksa setiap arah
+        for dx, dy in directions:
+            new_row, new_col = row + dx, col + dy
+            if self._is_valid_position(new_row, new_col, node, dx, dy):
+                new_node = self._get_node_at_position(new_row, new_col)
                 
-                # Cek apakah masih dalam papan
-                if 0 <= new_row < 5 and 0 <= new_col < 5:
-                    new_node = self.positions[new_row * 5 + new_col]
+                if not new_node:
+                    continue
                     
-                    # Untuk macan, cek kemungkinan melompat
-                    if node == self.macan_piece:
-                        if new_node in self.manusia_pieces:
-                            # Cek posisi setelah lompatan
-                            jump_row, jump_col = new_row + dx, new_col + dy
-                            if 0 <= jump_row < 5 and 0 <= jump_col < 5:
-                                jump_node = self.positions[jump_row * 5 + jump_col]
-                                if jump_node not in self.manusia_pieces and jump_node != self.macan_piece:
-                                    valid_moves.append((jump_node, new_node))
-                        elif new_node not in self.manusia_pieces:
-                            valid_moves.append((new_node, None))
-                    
-                    # Untuk pion manusia, hanya gerakan normal
-                    elif node in self.manusia_pieces:
-                        if new_node not in self.manusia_pieces and new_node != self.macan_piece:
-                            valid_moves.append((new_node, None))
+                if node == self.macan_piece:  # Logika untuk Macan
+                    # Cek gerakan normal
+                    if new_node not in self.manusia_pieces and new_node != self.macan_piece:
+                        valid_moves.append((new_node, None))
+                        
+                    # Cek gerakan makan
+                    elif new_node in self.manusia_pieces:
+                        jump_row, jump_col = new_row + dx, new_col + dy
+                        jump_node = self._get_node_at_position(jump_row, jump_col)
+                        if (jump_node and 
+                            jump_node not in self.manusia_pieces and 
+                            jump_node != self.macan_piece and
+                            self._is_valid_position(jump_row, jump_col, new_node, dx, dy)):
+                            valid_moves.append((jump_node, new_node))
+                            
+                else:  # Logika untuk Manusia
+                    if new_node not in self.manusia_pieces and new_node != self.macan_piece:
+                        # Manusia hanya bisa bergerak satu langkah
+                        valid_moves.append((new_node, None))
 
         return valid_moves
 
     def _has_diagonal_lines(self, row, col):
         """Cek apakah posisi memiliki garis diagonal."""
-        # Posisi yang memiliki garis diagonal:
+        # Posisi dalam grid 5x5 yang memiliki garis diagonal
         diagonal_positions = [
-            # Posisi di dalam grid 5x5 yang memiliki garis diagonal
-            (1, 1), (1, 3),  # Baris 1
-            (2, 0), (2, 2), (2, 4),  # Baris 2
-            (3, 1), (3, 3),  # Baris 3
-            # Tambahkan posisi lain sesuai dengan desain papan
+            # Baris pertama (indeks 0)
+            (0, 0), (0, 2), (0, 4),
+            # Baris kedua (indeks 1)
+            (1, 1), (1, 3),
+            # Baris ketiga (indeks 2)
+            (2, 0), (2, 2), (2, 4),
+            # Baris keempat (indeks 3)
+            (3, 1), (3, 3),
+            # Baris kelima (indeks 4)
+            (4, 0), (4, 2), (4, 4)
         ]
         
-        return (row, col) in diagonal_positions
+        # Periksa posisi dalam grid 5x5
+        if (row, col) in diagonal_positions:
+            return True
+            
+        # Periksa area segitiga kiri dan kanan
+        node_index = row * 5 + col
+        if node_index >= len(self.positions):  # Node berada di area segitiga
+            node = self.positions[node_index]
+            # Area segitiga kiri
+            if 100 <= node[0] <= 200 and 150 <= node[1] <= 250:
+                return True
+            # Area segitiga kanan
+            if 600 <= node[0] <= 700 and 150 <= node[1] <= 250:
+                return True
+            
+
+    def _is_valid_position(self, row, col, current_node, dx, dy):
+        """Cek apakah posisi valid dalam papan permainan."""
+        # Cek papan utama 5x5
+        if 0 <= row < 5 and 0 <= col < 5:
+            return True
+
+        # Hitung posisi target
+        target_x = current_node[0] + dx * 50
+        target_y = current_node[1] + dy * 50
+
+        # Cek area segitiga kiri
+        if (100 <= current_node[0] <= 200 and 150 <= current_node[1] <= 250 and
+            100 <= target_x <= 200 and 150 <= target_y <= 250):
+            return True
+
+        # Cek area segitiga kanan
+        if (600 <= current_node[0] <= 700 and 150 <= current_node[1] <= 250 and
+            600 <= target_x <= 700 and 150 <= target_y <= 250):
+            return True
+
+        return False
+
+    def _get_node_at_position(self, row, col):
+        """Dapatkan node pada posisi tertentu."""
+        # Cek dalam grid 5x5
+        if 0 <= row < 5 and 0 <= col < 5:
+            return self.positions[row * 5 + col]
+
+        # Cek dalam daftar node segitiga
+        for node in self.positions[25:]:  # Node setelah grid 5x5 adalah node segitiga
+            if abs(node[0] - (200 + col * 50)) < 10 and abs(node[1] - (200 + row * 50)) < 10:
+                return node
+
+        return None
 
     def move_piece(self, selected_piece, target_node):
         """Pindahkan pion yang dipilih ke target node dengan kemampuan makan untuk macan."""
