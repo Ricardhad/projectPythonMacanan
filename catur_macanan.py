@@ -18,78 +18,56 @@ def update_turn_label(turn_label, current_player):
     else:
         turn_label.config(text="AI's Turn", fg="red")
 
-def start_game(root,choice):
+def start_game(root, player_choice):
     """Mulai permainan berdasarkan pilihan (Manusia atau Macan)."""
-    # Buat jendela baru untuk permainan
     game_window = tk.Toplevel()
     game_window.title("Papan Macanan")
     canvas_width = 820
     canvas_height = 600
 
-    # Buat canvas untuk papan permainan
     canvas = tk.Canvas(game_window, width=canvas_width, height=canvas_height, bg="white")
     canvas.pack()
 
-    # Atur posisi jendela di tengah layar
     center_window(game_window, canvas_width, canvas_height)
+    positions = draw_board(canvas, 400, 200)
 
-    # Gambar papan
-    positions = draw_board(canvas, 400, 200)  # Ukuran papan dan padding
+    # Inisialisasi logika permainan dengan pilihan player
+    game_logic = GameLogic(canvas, positions, player_choice)  # Tambahkan player_choice
 
-    # Inisialisasi logika permainan
-    game_logic = GameLogic(canvas, positions)
-
-    # Menambahkan label untuk menunjukkan siapa yang sedang bermain
-    current_player = choice
+    current_player = "You"
     turn_label = tk.Label(game_window, text=f"{current_player}'s Turn", font=("Helvetica", 16))
     turn_label.pack(pady=10)
 
-    # Memperbarui giliran
     update_turn_label(turn_label, current_player)
-
-
-    # Fungsi untuk memperbarui giliran setelah setiap langkah
-    
-    # Menambahkan fungsi untuk mengganti giliran
     game_logic.change_turn()
-    print(current_player)
 
-
-    # Mulai permainan
     game_window.transient(root)
     game_window.grab_set()
     root.wait_window(game_window)
-    
-    print(game_window)
 
 def show_start_screen():
     """Menampilkan tampilan awal (pilihan antara Manusia atau Macan)."""
     root = tk.Tk()
     root.title("Papan Macanan - Start Game")
 
-    # Ukuran jendela tampilan awal
     canvas_width = 400
     canvas_height = 300
 
-    # Atur posisi jendela di tengah layar
     center_window(root, canvas_width, canvas_height)
 
-    # Label untuk judul
     title_label = tk.Label(root, text="Pilih Karakter Anda", font=("Helvetica", 20))
     title_label.pack(pady=50)
 
     # Tombol untuk memilih manusia
     button_manusia = tk.Button(root, text="Menjadi Manusia", width=20, height=2,
-                               command=lambda: start_game(root,"You"))
+                               command=lambda: start_game(root, "Manusia"))
     button_manusia.pack(pady=10)
 
     # Tombol untuk memilih macan
     button_macan = tk.Button(root, text="Menjadi Macan", width=20, height=2,
-                             command=lambda: start_game(root,"AI"))
+                             command=lambda: start_game(root, "Macan"))
     button_macan.pack(pady=10)
 
-    # Jalankan tampilan awal
-    
     root.mainloop()
 
 # Menjalankan tampilan awal ketika file ini dijalankan
