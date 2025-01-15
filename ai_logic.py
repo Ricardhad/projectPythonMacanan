@@ -112,46 +112,64 @@ class MacananAI:
     def _evaluate_manusia(self):
         """Evaluasi strategi manusia berdasarkan fase permainan."""
         score = 0
-        
+
         # Kondisi menang/kalah
         if self.game_logic.is_macan_trapped():
             return float('inf')  # Manusia menang
         if len(self.game_logic.manusia_pieces) <= 3:
             return float('-inf')  # Manusia kalah
-        
+
         # Evaluasi berdasarkan fase permainan
         if self.game_phase == "early":
-            # Fokus pada formasi yang kuat
+            # Fokus pada formasi yang kuat dan posisi defensif
             formation_score = self._evaluate_manusia_formation()
-            score += formation_score * 30
-            
+            mobility_score = self._evaluate_manusia_mobility()
+            score += formation_score * 40 + mobility_score * 20
+
         elif self.game_phase == "mid":
-            # Fokus pada pengepungan
+            # Fokus pada mengepung macan dan melindungi pion penting
             surrounding_score = self._evaluate_surrounding_macan()
-            score += surrounding_score * 50
-            
+            defense_score = self._evaluate_defensive_positions()
+            score += surrounding_score * 50 + defense_score * 30
+
         else:  # late game
-            # Fokus pada bertahan
+            # Fokus pada bertahan dan mencegah macan memakan pion
             if len(self.game_logic.manusia_pieces) >= 6:
                 score += 300
-        
-        # Tambahan evaluasi umum
-        score += len(self.game_logic.manusia_pieces) * 50  # Semakin banyak manusia semakin bagus
-        
-        if self.game_logic.macan_piece:
-            # Evaluasi jarak aman dari macan
-            safe_distance_score = 0
-            for piece in self.game_logic.manusia_pieces:
-                dist = self._manhattan_distance(piece, self.game_logic.macan_piece)
-                if dist < 2:  # Terlalu dekat dengan macan
-                    safe_distance_score -= 30
-                elif 2 <= dist <= 3:  # Jarak ideal untuk pengepungan
-                    safe_distance_score += 20
-                else:  # Terlalu jauh untuk pengepungan efektif
-                    safe_distance_score -= 10
-            score += safe_distance_score
-        
+            escape_routes = self._evaluate_escape_routes()
+            score += escape_routes * 20
+
+        # Tambahan evaluasi umum untuk pion yang tersisa
+        score += len(self.game_logic.manusia_pieces) * 10
+
         return score
+    
+    def _evaluate_manusia_mobility(self):
+        """Evaluasi mobilitas pion manusia untuk memastikan mereka memiliki opsi gerakan."""
+        mobility = 0
+        for piece in self.game_logic.manusia_pieces:
+            mobility += len(self.game_logic.get_valid_moveable_positions(piece))
+        return mobility
+
+    def _evaluate_defensive_positions(self):
+        """Evaluasi seberapa baik pion manusia berada dalam posisi defensif terhadap macan."""
+        score = 0
+        macan_pos = self.game_logic.macan_piece
+        for piece in self.game_logic.manusia_pieces:
+            if self.game_logic.is_piece_protected(piece):
+                score += 1
+            if self.game_logic.is_near_macan(piece, macan_pos):
+                score -= 2
+        return score
+
+    def _evaluate_escape_routes(self):
+        """Evaluasi opsi jalur melarikan diri untuk pion manusia."""
+        escape_score = 0
+        for piece in self.game_logic.manusia_pieces:
+            if self.game_logic.has_escape_route(piece):
+                escape_score += 1
+        return escape_score
+
 
     def _evaluate_center_control(self, pos):
         """Evaluasi kontrol pusat papan."""
