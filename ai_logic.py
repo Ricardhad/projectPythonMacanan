@@ -11,7 +11,7 @@ class MacananAI:
 
     def get_position_hash(self):
         """Generate hash unik untuk posisi saat ini."""
-        macan_pos = str(self.game_logic.macan_piece)
+        macan_pos = str(sorted(self.game_logic.macan_piece))  # Sort untuk konsistensi
         manusia_pos = str(sorted(self.game_logic.manusia_pieces))
         return hash(macan_pos + manusia_pos)
 
@@ -28,46 +28,76 @@ class MacananAI:
             self.game_phase = "late"
 
     def get_best_move(self, is_macan):
-        """Mendapatkan gerakan terbaik dengan variasi strategi."""
-        self.update_game_phase()
-        
-        # Occasionally make random moves for unpredictability (10% chance)
-        if random.random() < 0.1:
-            possible_moves = self.get_all_possible_moves(is_macan)
-            if possible_moves:
-                return random.choice(possible_moves)
+        """Mendapatkan gerakan terbaik."""
+        # Fase penempatan awal (turn <= 3)
+        if self.game_logic.turn_count <= 3:
+            available_positions = [pos for pos in self.game_logic.positions 
+                                 if pos not in self.game_logic.manusia_pieces 
+                                 and pos not in self.game_logic.macan_piece]
+            if available_positions:
+                best_pos = self._get_strategic_placement(available_positions, is_macan)
+                return (None, best_pos)
+            return None
 
-        position_hash = self.get_position_hash()
-        cached = self.transposition_table.lookup(position_hash)
-        
-        if cached and cached[0] >= self.MAX_DEPTH:
-            return cached[2]  # Return cached move
+        # Fase pergerakan
+        possible_moves = self.get_all_possible_moves(is_macan)
+        if not possible_moves:
+            return None
 
+        # Jika manusia masih dalam fase penempatan
+        if not is_macan and len(self.game_logic.manusia_pieces) < 8:
+            best_pos = self._get_strategic_placement([move[1] for move in possible_moves], is_macan)
+            return (None, best_pos)
+
+        # Gunakan minimax untuk fase pergerakan
         best_score = float('-inf')
         best_move = None
-        alpha = float('-inf')
-        beta = float('inf')
-        
-        possible_moves = self.get_sorted_moves(is_macan)
         
         for move in possible_moves:
             old_state = self.save_game_state()
             self.make_move(move, is_macan)
-            
-            score = self.minimax(self.MAX_DEPTH - 1, False, is_macan, alpha, beta)
-            
+            score = self.minimax(self.MAX_DEPTH - 1, False, is_macan, float('-inf'), float('inf'))
             self.restore_game_state(old_state)
             
             if score > best_score:
                 best_score = score
                 best_move = move
-                alpha = max(alpha, score)
 
-        # Cache the result
-        self.transposition_table.store(position_hash, self.MAX_DEPTH, best_score, best_move)
-        self.move_history.append((best_move, self.game_phase))
-        
         return best_move
+
+    def _get_strategic_placement(self, available_positions, is_macan):
+        """Pilih posisi strategis untuk penempatan pion."""
+        # Filter posisi yang hanya dalam kotak 5x5
+        valid_positions = [pos for pos in available_positions 
+                          if self.game_logic._is_valid_placement_position(pos)]
+        
+        if not valid_positions:  # Jika tidak ada posisi valid
+            return None
+        
+        if is_macan:
+            # Macan sebaiknya ditempatkan di posisi yang strategis
+            # Prioritaskan posisi tengah
+            center_positions = [pos for pos in valid_positions 
+                              if 200 <= pos[0] <= 300 and 200 <= pos[1] <= 300]
+            if center_positions:
+                return random.choice(center_positions)
+            
+            # Atau posisi sudut dalam kotak 5x5
+            corner_positions = [pos for pos in valid_positions
+                              if (pos[0] in [150, 350] and pos[1] in [150, 350])]
+            if corner_positions:
+                return random.choice(corner_positions)
+        else:
+            # Manusia sebaiknya ditempatkan untuk membentuk formasi
+            if self.game_logic.manusia_pieces:
+                existing_pos = self.game_logic.manusia_pieces[0]
+                nearby_positions = [pos for pos in valid_positions
+                                  if 50 <= self._manhattan_distance(pos, existing_pos) <= 100]
+                if nearby_positions:
+                    return random.choice(nearby_positions)
+        
+        # Jika tidak ada posisi strategis yang valid, pilih random dari posisi valid
+        return random.choice(valid_positions)
 
     def evaluate_position(self, is_macan):
         """Evaluasi posisi dengan mempertimbangkan fase permainan."""
@@ -89,9 +119,9 @@ class MacananAI:
         # Evaluasi berdasarkan fase permainan
         if self.game_phase == "early":
             # Fokus pada kontrol pusat dan mobilitas
-            if self.game_logic.macan_piece:
-                center_control = self._evaluate_center_control(self.game_logic.macan_piece)
-                mobility = len(self.game_logic.get_valid_moveable_positions(self.game_logic.macan_piece))
+            for macan in self.game_logic.macan_piece:
+                center_control = self._evaluate_center_control(macan)
+                mobility = len(self.game_logic.get_valid_moveable_positions(macan))
                 score += (center_control * 40) + (mobility * 15)
                 
         elif self.game_phase == "mid":
@@ -112,64 +142,46 @@ class MacananAI:
     def _evaluate_manusia(self):
         """Evaluasi strategi manusia berdasarkan fase permainan."""
         score = 0
-
+        
         # Kondisi menang/kalah
         if self.game_logic.is_macan_trapped():
             return float('inf')  # Manusia menang
         if len(self.game_logic.manusia_pieces) <= 3:
             return float('-inf')  # Manusia kalah
-
+        
         # Evaluasi berdasarkan fase permainan
         if self.game_phase == "early":
-            # Fokus pada formasi yang kuat dan posisi defensif
+            # Fokus pada formasi yang kuat
             formation_score = self._evaluate_manusia_formation()
-            mobility_score = self._evaluate_manusia_mobility()
-            score += formation_score * 40 + mobility_score * 20
-
+            score += formation_score * 30
+            
         elif self.game_phase == "mid":
-            # Fokus pada mengepung macan dan melindungi pion penting
+            # Fokus pada pengepungan
             surrounding_score = self._evaluate_surrounding_macan()
-            defense_score = self._evaluate_defensive_positions()
-            score += surrounding_score * 50 + defense_score * 30
-
+            score += surrounding_score * 50
+            
         else:  # late game
-            # Fokus pada bertahan dan mencegah macan memakan pion
+            # Fokus pada bertahan
             if len(self.game_logic.manusia_pieces) >= 6:
                 score += 300
-            escape_routes = self._evaluate_escape_routes()
-            score += escape_routes * 20
-
-        # Tambahan evaluasi umum untuk pion yang tersisa
-        score += len(self.game_logic.manusia_pieces) * 10
-
+        
+        # Tambahan evaluasi umum
+        score += len(self.game_logic.manusia_pieces) * 50  # Semakin banyak manusia semakin bagus
+        
+        # Evaluasi jarak aman dari semua macan
+        safe_distance_score = 0
+        for piece in self.game_logic.manusia_pieces:
+            for macan in self.game_logic.macan_piece:
+                dist = self._manhattan_distance(piece, macan)
+                if dist < 2:  # Terlalu dekat dengan macan
+                    safe_distance_score -= 30
+                elif 2 <= dist <= 3:  # Jarak ideal untuk pengepungan
+                    safe_distance_score += 20
+                else:  # Terlalu jauh untuk pengepungan efektif
+                    safe_distance_score -= 10
+        score += safe_distance_score
+        
         return score
-    
-    def _evaluate_manusia_mobility(self):
-        """Evaluasi mobilitas pion manusia untuk memastikan mereka memiliki opsi gerakan."""
-        mobility = 0
-        for piece in self.game_logic.manusia_pieces:
-            mobility += len(self.game_logic.get_valid_moveable_positions(piece))
-        return mobility
-
-    def _evaluate_defensive_positions(self):
-        """Evaluasi seberapa baik pion manusia berada dalam posisi defensif terhadap macan."""
-        score = 0
-        macan_pos = self.game_logic.macan_piece
-        for piece in self.game_logic.manusia_pieces:
-            if self.game_logic.is_piece_protected(piece):
-                score += 1
-            if self.game_logic.is_near_macan(piece, macan_pos):
-                score -= 2
-        return score
-
-    def _evaluate_escape_routes(self):
-        """Evaluasi opsi jalur melarikan diri untuk pion manusia."""
-        escape_score = 0
-        for piece in self.game_logic.manusia_pieces:
-            if self.game_logic.has_escape_route(piece):
-                escape_score += 1
-        return escape_score
-
 
     def _evaluate_center_control(self, pos):
         """Evaluasi kontrol pusat papan."""
@@ -196,30 +208,27 @@ class MacananAI:
 
     def _evaluate_surrounding_macan(self):
         """Evaluasi seberapa baik pion manusia mengepung macan."""
-        if not self.game_logic.macan_piece:
-            return 0
-        
         surrounding_score = 0
-        macan_pos = self.game_logic.macan_piece
         
-        # Cek pion manusia di sekitar macan
-        for piece in self.game_logic.manusia_pieces:
-            dist = self._manhattan_distance(piece, macan_pos)
-            if dist <= 50:  # Dalam jarak pengepungan
-                surrounding_score += 1
-                
-            # Bonus untuk posisi strategis
-            if self._is_strategic_position(piece, macan_pos):
-                surrounding_score += 2
-                
+        for macan_pos in self.game_logic.macan_piece:
+            # Cek pion manusia di sekitar macan
+            for piece in self.game_logic.manusia_pieces:
+                dist = self._manhattan_distance(piece, macan_pos)
+                if dist <= 50:  # Dalam jarak pengepungan
+                    surrounding_score += 1
+                    
+                # Bonus untuk posisi strategis
+                if self._is_strategic_position(piece, macan_pos):
+                    surrounding_score += 2
+                    
         return surrounding_score
 
     def _count_potential_victims(self):
         """Hitung jumlah pion manusia yang berpotensi dimakan."""
         count = 0
-        if self.game_logic.macan_piece:
+        for macan in self.game_logic.macan_piece:
             for piece in self.game_logic.manusia_pieces:
-                if self._can_eat_piece(self.game_logic.macan_piece, piece):
+                if self._can_eat_piece(macan, piece):
                     count += 1
         return count
 
@@ -268,9 +277,9 @@ class MacananAI:
             # Prioritaskan gerakan ke pusat
             score -= self._manhattan_distance(to_pos, (250, 250)) * 0.1
         else:
-            # Untuk manusia, prioritaskan gerakan yang menjauh dari macan
-            if self.game_logic.macan_piece:
-                dist = self._manhattan_distance(to_pos, self.game_logic.macan_piece)
+            # Untuk manusia, prioritaskan gerakan yang menjauh dari semua macan
+            for macan in self.game_logic.macan_piece:  # Iterasi semua macan
+                dist = self._manhattan_distance(to_pos, macan)
                 score += dist * 0.5 if dist > 2 else -dist
         
         return score
@@ -308,15 +317,33 @@ class MacananAI:
     def get_all_possible_moves(self, is_macan):
         """Dapatkan semua gerakan yang mungkin."""
         moves = []
+        
+        # Fase penempatan (turn <= 3)
+        if self.game_logic.turn_count <= 3:
+            # Hanya gunakan posisi dalam kotak 5x5 (indeks 0-24)
+            available_positions = [pos for pos in self.game_logic.positions[:25]
+                                 if pos not in self.game_logic.manusia_pieces 
+                                 and pos not in self.game_logic.macan_piece]
+            return [(None, pos) for pos in available_positions]
+        
+        # Fase pergerakan
         if is_macan:
-            piece = self.game_logic.macan_piece
-            if piece:
+            for piece in self.game_logic.macan_piece:
                 valid_moves = self.game_logic.get_valid_moveable_positions(piece)
                 moves.extend([(piece, move[0]) for move in valid_moves])
         else:
-            for piece in self.game_logic.manusia_pieces:
-                valid_moves = self.game_logic.get_valid_moveable_positions(piece)
-                moves.extend([(piece, move[0]) for move in valid_moves])
+            if len(self.game_logic.manusia_pieces) < 8:
+                # Manusia masih dalam fase penempatan, hanya dalam kotak 5x5
+                for pos in self.game_logic.positions[:25]:  # Hanya posisi 0-24
+                    if (pos not in self.game_logic.manusia_pieces and 
+                        pos not in self.game_logic.macan_piece):
+                        moves.append((None, pos))
+            else:
+                # Manusia sudah bisa bergerak
+                for piece in self.game_logic.manusia_pieces:
+                    valid_moves = self.game_logic.get_valid_moveable_positions(piece)
+                    moves.extend([(piece, move[0]) for move in valid_moves])
+        
         return moves
 
     def _manhattan_distance(self, pos1, pos2):
@@ -335,7 +362,7 @@ class MacananAI:
         """Simpan state game saat ini."""
         return {
             'manusia_pieces': self.game_logic.manusia_pieces.copy(),
-            'macan_piece': self.game_logic.macan_piece,
+            'macan_piece': self.game_logic.macan_piece.copy(),  # Gunakan copy() untuk list
             'game_over': self.game_logic.game_over,
             'winner': self.game_logic.winner
         }
@@ -343,18 +370,39 @@ class MacananAI:
     def restore_game_state(self, state):
         """Kembalikan state game ke kondisi sebelumnya."""
         self.game_logic.manusia_pieces = state['manusia_pieces'].copy()
-        self.game_logic.macan_piece = state['macan_piece']
+        self.game_logic.macan_piece = state['macan_piece'].copy()  # Gunakan copy() untuk list
         self.game_logic.game_over = state['game_over']
         self.game_logic.winner = state['winner']
 
     def make_move(self, move, is_macan):
         """Buat gerakan untuk simulasi."""
         from_pos, to_pos = move
+        
+        # Fase penempatan (from_pos adalah None)
+        if from_pos is None:
+            if is_macan:
+                self.game_logic.macan_piece.append(to_pos)
+            else:
+                self.game_logic.manusia_pieces.append(to_pos)
+            return
+
+        # Fase pergerakan
         if is_macan:
-            self.game_logic.macan_piece = to_pos
+            # Update posisi macan yang dipindahkan
+            macan_index = self.game_logic.macan_piece.index(from_pos)
+            self.game_logic.macan_piece[macan_index] = to_pos
+            
+            # Cek apakah ada manusia yang dimakan
+            dx = (to_pos[0] - from_pos[0]) // 2
+            dy = (to_pos[1] - from_pos[1]) // 2
+            eaten_pos = (from_pos[0] + dx, from_pos[1] + dy)
+            
+            if eaten_pos in self.game_logic.manusia_pieces:
+                self.game_logic.manusia_pieces.remove(eaten_pos)
         else:
-            self.game_logic.manusia_pieces.remove(from_pos)
-            self.game_logic.manusia_pieces.append(to_pos) 
+            if from_pos in self.game_logic.manusia_pieces:  # Pastikan pion ada sebelum dihapus
+                self.game_logic.manusia_pieces.remove(from_pos)
+                self.game_logic.manusia_pieces.append(to_pos)
 
     def _is_strategic_position(self, manusia_pos, macan_pos):
         """Cek apakah posisi pion manusia strategis untuk pengepungan."""
@@ -411,3 +459,33 @@ class MacananAI:
                 return True
         
         return False 
+
+    def get_movement_move(self, is_macan):
+        """Mendapatkan gerakan untuk fase pergerakan saja."""
+        possible_moves = []
+        if is_macan:
+            for piece in self.game_logic.macan_piece:
+                valid_moves = self.game_logic.get_valid_moveable_positions(piece)
+                possible_moves.extend([(piece, move[0]) for move in valid_moves])
+        else:
+            for piece in self.game_logic.manusia_pieces:
+                valid_moves = self.game_logic.get_valid_moveable_positions(piece)
+                possible_moves.extend([(piece, move[0]) for move in valid_moves])
+
+        if not possible_moves:
+            return None
+
+        # Pilih gerakan terbaik menggunakan minimax
+        best_score = float('-inf')
+        best_move = None
+        for move in possible_moves:
+            old_state = self.save_game_state()
+            self.make_move(move, is_macan)
+            score = self.minimax(self.MAX_DEPTH - 1, False, is_macan, float('-inf'), float('inf'))
+            self.restore_game_state(old_state)
+            
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+        return best_move 
