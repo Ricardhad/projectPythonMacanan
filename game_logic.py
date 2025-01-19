@@ -14,7 +14,7 @@ class GameLogic:
         self.selected_piece = None
         self.canvas.bind("<Button-1>", self.place_or_move_piece)
         self.current_player = "Macan"  # Selalu mulai dengan Macan
-        self.turn_count = 1  # Mulai dari turn 1
+        self.turn_count = 0  # Mulai dari turn 1
         
         self.turn_label = self.canvas.create_text(
             250, 20, 
@@ -227,8 +227,8 @@ class GameLogic:
         """Memulai permainan setelah pion biru dan merah ditempatkan."""
         print("Semua pion sudah ditempatkan. Permainan dimulai!")
         self.current_phase = "game"
-        self.turn_count = 1  # Mulai dari ronde 1
-        
+        self.turn_count = 0  # Mulai dari ronde 1
+       
         # Set giliran pertama sesuai pilihan player
         if self.player_choice == "Manusia":
             self.current_player = "You"
@@ -571,7 +571,7 @@ class GameLogic:
         self.current_phase = "placement"
         self.selected_piece = None
         self.current_player = "Macan"
-        self.turn_count = 1
+        self.turn_count = 0
         self.game_over = False
         self.winner = None
         self.game_over_label = None
