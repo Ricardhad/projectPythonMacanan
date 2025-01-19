@@ -1,7 +1,21 @@
 import random
 
 class GameLogic:
-
+    
+    # bikin class untuk setiap role , nanti butuh di simpulkan codenya (terlalu ribet bacanya)
+    
+    # def macan(self):
+    #     self.max_pawn = 2
+    #     self.max_tile_movement= 5
+    #     self.position = []
+    #     self.color= 'red'
+    
+    # def manusia(self):
+    #     self.max_pawn = 8
+    #     self.max_tile_movement= 1
+    #     self.position = []
+    #     self.color= 'blue'
+        
     def __init__(self, canvas, positions, player_choice, mode="AI", pvp_roles=None):
         self.canvas = canvas
         self.positions = positions
