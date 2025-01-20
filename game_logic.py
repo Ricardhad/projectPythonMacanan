@@ -302,57 +302,114 @@ class GameLogic:
     def get_valid_moveable_positions(self, node):
         """Mendapatkan semua posisi valid yang bisa dituju."""
         if not node or node not in self.positions:
-            print(f"Node tidak valid: {node}")
             return []
-            
-        valid_moves = []
-        try:
-            node_index = self.positions.index(node)
-            row, col = node_index // 5, node_index % 5
-        except ValueError:
-            print(f"Node tidak valid: {node}")
-            return []
-
-        # Definisi arah pergerakan dasar
-        orthogonal = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # Vertikal & horizontal
-        diagonal = [(1, 1), (1, -1), (-1, 1), (-1, -1)]  # Diagonal
         
-        # Tentukan arah yang valid berdasarkan posisi
-        directions = orthogonal.copy()
-        if self._has_diagonal_lines(row, col):
-            directions.extend(diagonal)
-
-        # Periksa setiap arah
-        for dx, dy in directions:
-            new_row, new_col = row + dx, col + dy
-            if self._is_valid_position(new_row, new_col, node, dx, dy):
-                new_node = self._get_node_at_position(new_row, new_col)
+        valid_moves = []
+        connected_nodes = []
+        node_index = self.positions.index(node)
+        
+        # Jika node berada di grid 5x5 (indeks 0-24)
+        if node_index < 25:
+            row = node_index // 5
+            col = node_index % 5
+            
+            # Cek orthogonal di grid
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                new_row, new_col = row + dx, col + dy
+                if 0 <= new_row < 5 and 0 <= new_col < 5:
+                    new_index = new_row * 5 + new_col
+                    connected_nodes.append(self.positions[new_index])
+            
+            # Cek diagonal jika ada
+            if self._has_diagonal_lines(row, col):
+                for dx, dy in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                    new_row, new_col = row + dx, col + dy
+                    if 0 <= new_row < 5 and 0 <= new_col < 5:
+                        new_index = new_row * 5 + new_col
+                        connected_nodes.append(self.positions[new_index])
+            
+            # Tambahkan koneksi ke segitiga hanya dari titik tengah
+            if col == 0 and row == 2:  # Titik tengah kolom kiri (index 10)
+                # Koneksi ke segitiga kiri
+                for triangle_node in self.positions[25:31]:
+                    dx = triangle_node[0] - node[0]
+                    dy = triangle_node[1] - node[1]
+                    distance = (dx ** 2 + dy ** 2) ** 0.5
+                    if distance <= 100:  # Threshold jarak koneksi
+                        connected_nodes.append(triangle_node)
+            
+            elif col == 4 and row == 2:  # Titik tengah kolom kanan (index 14)
+                # Koneksi ke segitiga kanan
+                for triangle_node in self.positions[31:]:
+                    dx = triangle_node[0] - node[0]
+                    dy = triangle_node[1] - node[1]
+                    distance = (dx ** 2 + dy ** 2) ** 0.5
+                    if distance <= 100:  # Threshold jarak koneksi
+                        connected_nodes.append(triangle_node)
+        
+        # Jika node berada di area segitiga (indeks 25+)
+        else:
+            # Koneksi dalam segitiga yang sama
+            if node_index < 31:  # Segitiga kiri
+                # Koneksi ke node segitiga lain di kiri
+                for triangle_node in self.positions[25:31]:
+                    if triangle_node != node:
+                        dx = triangle_node[0] - node[0]
+                        dy = triangle_node[1] - node[1]
+                        distance = (dx ** 2 + dy ** 2) ** 0.5
+                        if distance <= 100:
+                            connected_nodes.append(triangle_node)
                 
-                if not new_node or new_node not in self.positions:
-                    continue
-                    
+                # Koneksi hanya ke titik tengah grid (index 10)
+                grid_node = self.positions[10]  # Titik tengah kolom kiri
+                dx = grid_node[0] - node[0]
+                dy = grid_node[1] - node[1]
+                distance = (dx ** 2 + dy ** 2) ** 0.5
+                if distance <= 100:
+                    connected_nodes.append(grid_node)
+            
+            else:  # Segitiga kanan
+                # Koneksi ke node segitiga lain di kanan
+                for triangle_node in self.positions[31:]:
+                    if triangle_node != node:
+                        dx = triangle_node[0] - node[0]
+                        dy = triangle_node[1] - node[1]
+                        distance = (dx ** 2 + dy ** 2) ** 0.5
+                        if distance <= 100:
+                            connected_nodes.append(triangle_node)
+                
+                # Koneksi hanya ke titik tengah grid (index 14)
+                grid_node = self.positions[14]  # Titik tengah kolom kanan
+                dx = grid_node[0] - node[0]
+                dy = grid_node[1] - node[1]
+                distance = (dx ** 2 + dy ** 2) ** 0.5
+                if distance <= 100:
+                    connected_nodes.append(grid_node)
+        
+        # Filter gerakan valid berdasarkan aturan permainan
+        for target_node in connected_nodes:
+            if target_node not in self.macan_piece:  # Tidak bisa ke posisi macan lain
                 if node in self.macan_piece:  # Logika untuk Macan
-                    # Cek gerakan normal - tidak boleh ke posisi macan lain
-                    if (new_node not in self.manusia_pieces and 
-                        new_node not in self.macan_piece):  # Tambah pengecekan macan lain
-                        valid_moves.append((new_node, None))
+                    if target_node not in self.manusia_pieces:
+                        valid_moves.append((target_node, None))
+                    else:  # Cek lompatan untuk makan
+                        dx = target_node[0] - node[0]
+                        dy = target_node[1] - node[1]
+                        jump_x = target_node[0] + dx
+                        jump_y = target_node[1] + dy
                         
-                    # Cek gerakan makan
-                    elif new_node in self.manusia_pieces:
-                        jump_row, jump_col = new_row + dx, new_col + dy
-                        jump_node = self._get_node_at_position(jump_row, jump_col)
-                        if (jump_node and 
-                            jump_node in self.positions and
-                            jump_node not in self.manusia_pieces and 
-                            jump_node not in self.macan_piece and  # Tambah pengecekan macan lain
-                            self._is_valid_position(jump_row, jump_col, new_node, dx, dy)):
-                            valid_moves.append((jump_node, new_node))
-                            
+                        # Cari node untuk lompatan
+                        for jump_node in self.positions:
+                            if (abs(jump_node[0] - jump_x) < 20 and 
+                                abs(jump_node[1] - jump_y) < 20 and
+                                jump_node not in self.manusia_pieces and
+                                jump_node not in self.macan_piece):
+                                valid_moves.append((jump_node, target_node))
+                
                 else:  # Logika untuk Manusia
-                    if new_node not in self.manusia_pieces and new_node not in self.macan_piece:
-                        # Manusia hanya bisa bergerak satu langkah
-                        valid_moves.append((new_node, None))
-
+                    if target_node not in self.manusia_pieces:
+                        valid_moves.append((target_node, None))
+        
         return valid_moves
 
     def _has_diagonal_lines(self, row, col):
