@@ -253,28 +253,51 @@ class GameLogic:
 
     def select_piece(self, node):
         """Pilih pion untuk digerakkan."""
-        if ((self.player_choice == "Manusia" and node in self.manusia_pieces) or 
-            (self.player_choice == "Macan" and node in self.macan_piece)):
-            self.selected_piece = node
-            # Hapus highlight sebelumnya
-            self.canvas.delete("highlight")
-            
-            # Highlight pion yang dipilih
-            self.canvas.create_oval(
-                node[0] - 8, node[1] - 8,
-                node[0] + 8, node[1] + 8,
-                outline="yellow", width=2, tags="highlight"
-            )
-            
-            # Highlight area yang bisa digerakkan
-            valid_moves = self.get_valid_moveable_positions(node)
-            for move in valid_moves:
-                valid_node = move[0]
-                self.canvas.create_rectangle(
-                    valid_node[0] - 8, valid_node[1] - 8,
-                    valid_node[0] + 8, valid_node[1] + 8,
-                    outline="green", width=2, tags="highlight"
+        if self.mode == "PVP":
+            # Untuk mode PVP, gunakan current_player untuk menentukan pion yang bisa dipilih
+            if ((self.current_player == "Macan" and node in self.macan_piece) or 
+                (self.current_player == "Manusia" and node in self.manusia_pieces)):
+                self.selected_piece = node
+                # Hapus highlight sebelumnya
+                self.canvas.delete("highlight")
+                
+                # Highlight pion yang dipilih
+                self.canvas.create_oval(
+                    node[0] - 8, node[1] - 8,
+                    node[0] + 8, node[1] + 8,
+                    outline="yellow", width=2, tags="highlight"
                 )
+                
+                # Highlight area yang bisa digerakkan
+                valid_moves = self.get_valid_moveable_positions(node)
+                for move in valid_moves:
+                    valid_node = move[0]
+                    self.canvas.create_rectangle(
+                        valid_node[0] - 8, valid_node[1] - 8,
+                        valid_node[0] + 8, valid_node[1] + 8,
+                        outline="green", width=2, tags="highlight"
+                    )
+        else:
+            # Mode AI: tetap seperti sebelumnya
+            if ((self.player_choice == "Manusia" and node in self.manusia_pieces) or 
+                (self.player_choice == "Macan" and node in self.macan_piece)):
+                self.selected_piece = node
+                self.canvas.delete("highlight")
+                
+                self.canvas.create_oval(
+                    node[0] - 8, node[1] - 8,
+                    node[0] + 8, node[1] + 8,
+                    outline="yellow", width=2, tags="highlight"
+                )
+                
+                valid_moves = self.get_valid_moveable_positions(node)
+                for move in valid_moves:
+                    valid_node = move[0]
+                    self.canvas.create_rectangle(
+                        valid_node[0] - 8, valid_node[1] - 8,
+                        valid_node[0] + 8, valid_node[1] + 8,
+                        outline="green", width=2, tags="highlight"
+                    )
 
     def get_valid_moveable_positions(self, node):
         """Mendapatkan semua posisi valid yang bisa dituju."""
@@ -693,13 +716,13 @@ class GameLogic:
     def can_player_move_piece(self, piece):
         """Cek apakah player bisa menggerakkan pion tersebut."""
         if self.mode == "PVP":
-            # Dalam mode PVP, cek berdasarkan giliran saat ini
+            # Dalam mode PVP, periksa berdasarkan giliran saat ini
             if self.current_player == "Macan":
                 return piece in self.macan_piece
             else:  # current_player == "Manusia"
                 return piece in self.manusia_pieces
         else:
-            # Mode AI: cek berdasarkan player_choice
+            # Mode AI: tetap seperti sebelumnya
             if self.player_choice == "Manusia":
                 return piece in self.manusia_pieces and self.current_player == "Manusia"
             else:  # player_choice == "Macan"
